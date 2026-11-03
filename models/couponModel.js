@@ -32,6 +32,7 @@ const couponSchema = new mongoose.Schema(
       enum: ["DRAFT", "ACTIVE", "INACTIVE"],
       default: "DRAFT",
     },
+    
   },
   { timestamps: true },
 );

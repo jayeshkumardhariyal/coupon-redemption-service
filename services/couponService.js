@@ -53,3 +53,109 @@ export const createCouponService = async ({
     throw error;
   }
 };
+
+export const updateCouponService = async (id, updateData) => {
+  // Find existing coupon
+  const coupon = await Coupon.findById(id);
+
+  if (!coupon) {
+    throw new AppError("Coupon not found", 404, {
+      errors: [
+        {
+          field: "id",
+          message: "Coupon not found with this id",
+        },
+      ],
+    });
+  }
+
+  // Normalize coupon code if provided
+  if (updateData.code !== undefined) {
+    updateData.code = updateData.code.trim().toUpperCase();
+
+    // Check duplicate coupon code
+    const existingCoupon = await Coupon.findOne({
+      code: updateData.code,
+      _id: { $ne: id },
+    });
+
+    if (existingCoupon) {
+      throw new AppError("Coupon code already exists", 409, {
+        errors: [
+          {
+            field: "code",
+            message: "Coupon code already exists",
+          },
+        ],
+      });
+    }
+  }
+
+  // Validate the final discount combination
+  const finalDiscountType = updateData.discountType ?? coupon.discountType;
+
+  const finalDiscountValue = updateData.discountValue ?? coupon.discountValue;
+
+  if (finalDiscountType === "PERCENTAGE" && finalDiscountValue > 100) {
+    throw new AppError("Invalid discount value", 400, {
+      errors: [
+        {
+          field: "discountValue",
+          message: "Percentage discount cannot exceed 100",
+        },
+      ],
+    });
+  }
+
+  // Update coupon fields
+  Object.assign(coupon, updateData);
+
+  try {
+    await coupon.save();
+    return coupon;
+  } catch (error) {
+    // Handle duplicate codes created by concurrent requests
+    if (error.code === 11000) {
+      throw new AppError("Coupon code already exists", 409, {
+        errors: [
+          {
+            field: "code",
+            message: "Coupon code already exists",
+          },
+        ],
+      });
+    }
+
+    throw error;
+  }
+};
+
+export const getAllCouponsService = async () => {
+  const coupons = await Coupon.find();
+
+  return coupons;
+};
+
+export const getCouponByIdService = async (id) => {
+  const coupon = await Coupon.findById(id);
+
+  if (!coupon) {
+    throw new AppError("Coupon not found", 404, {
+      errors: [{ field: "id", message: "Coupon not found with this id" }],
+    });
+  }
+
+  return coupon;
+};
+
+export const deleteCouponService = async (id) => {
+  const coupon = await Coupon.findByIdAndDelete(id);
+
+  if (!coupon) {
+    throw new AppError("Coupon not found", 404, {
+      errors: [{ field: "id", message: "Coupon not found with this id" }],
+    });
+  }
+
+  return coupon;
+};
