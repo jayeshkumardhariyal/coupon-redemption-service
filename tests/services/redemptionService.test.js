@@ -358,6 +358,7 @@ describe("RedemptionService", () => {
       ];
 
       Redemption.find.mockReturnValue({
+        session: jest.fn().mockReturnThis(),
         sort: jest.fn().mockResolvedValue(redemptionHistory),
       });
 
