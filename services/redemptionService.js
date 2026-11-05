@@ -4,6 +4,8 @@ import Redemption from "../models/redemptionModel.js";
 import CouponUsage from "../models/couponUsageModel.js";
 import AppError from "../middlewares/appError.js";
 
+import { APIFeatures } from "../utils/apiFeatures.js";
+
 const toFraction = (value) => {
   const [coefficient, exponentString] = String(value).toLowerCase().split("e");
 
@@ -340,4 +342,65 @@ export const revertRedemptionService = async ({ redemptionId }) => {
   } finally {
     await session.endSession();
   }
+};
+
+export const getCustomerRedemptionHistoryService = async ({
+  customerId,
+  queryString,
+}) => {
+  // Allow only pagination and presentation options from the query string.
+  const paginationQuery = {
+    page: queryString.page,
+    limit: queryString.limit,
+    sort: queryString.sort,
+    fields: queryString.fields,
+  };
+
+  const features = new APIFeatures(
+    Redemption.find({ customerId }),
+    paginationQuery,
+  );
+
+  await features.process();
+
+  const redemptions = await features.query;
+
+  return {
+    redemptions,
+    pagination: {
+      totalRecords: features.totalCount,
+      totalPages: Math.ceil(features.totalCount / features.limit),
+      currentPage: features.page,
+      limit: features.limit,
+    },
+  };
+};
+
+export const getRevertedRedemptionHistoryService = async ({ queryString }) => {
+  // Allow only pagination and presentation options from the query string.
+  const paginationQuery = {
+    page: queryString.page,
+    limit: queryString.limit,
+    sort: queryString.sort,
+    fields: queryString.fields,
+  };
+
+  const features = new APIFeatures(
+    Redemption.find({ status: "REVERSED" }),
+    paginationQuery,
+  );
+
+  await features.process();
+
+  const redemptions = await features.query;
+
+  return {
+    redemptions,
+    pagination: {
+      totalRecords: features.totalCount,
+      totalPages: Math.ceil(features.totalCount / features.limit),
+      currentPage: features.page,
+      limit: features.limit,
+    },
+  };
 };

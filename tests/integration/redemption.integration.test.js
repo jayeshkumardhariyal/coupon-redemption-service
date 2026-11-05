@@ -449,6 +449,194 @@ describe("Redemption API integration", () => {
       createSpy.mockRestore();
     }
   });
+  it("should fetch only the logged-in customer's redemption history", async () => {
+    const customerId = new mongoose.Types.ObjectId();
+    const anotherCustomerId = new mongoose.Types.ObjectId();
+
+    const coupon = await createActiveCoupon();
+
+    const token = createAccessToken(customerId, "Customer");
+
+    await Redemption.create([
+      {
+        couponId: coupon._id,
+        customerId,
+        orderId: "HISTORY-001",
+        couponCode: coupon.code,
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        orderValue: 1000,
+        discountAmount: 100,
+        status: "REDEEMED",
+      },
+      {
+        couponId: coupon._id,
+        customerId,
+        orderId: "HISTORY-002",
+        couponCode: coupon.code,
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        orderValue: 2000,
+        discountAmount: 200,
+        status: "REDEEMED",
+      },
+      {
+        couponId: coupon._id,
+        customerId: anotherCustomerId,
+        orderId: "HISTORY-003",
+        couponCode: coupon.code,
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        orderValue: 3000,
+        discountAmount: 300,
+        status: "REDEEMED",
+      },
+    ]);
+
+    const response = await request(app)
+      .get("/api/redemptions/history?page=1&limit=10")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.message).toBe(
+      "Redemption history fetched successfully",
+    );
+
+    expect(response.body.data.redemptions).toHaveLength(2);
+
+    expect(
+      response.body.data.redemptions.every(
+        (redemption) => redemption.customerId === customerId.toString(),
+      ),
+    ).toBe(true);
+
+    expect(response.body.data.pagination).toMatchObject({
+      totalRecords: 2,
+      totalPages: 1,
+      currentPage: 1,
+      limit: 10,
+    });
+  });
+  it("should paginate customer redemption history", async () => {
+    const customerId = new mongoose.Types.ObjectId();
+    const coupon = await createActiveCoupon();
+    const token = createAccessToken(customerId, "Customer");
+
+    const redemptions = Array.from({ length: 5 }, (_, index) => ({
+      couponId: coupon._id,
+      customerId,
+      orderId: `PAGE-${index + 1}`,
+      couponCode: coupon.code,
+      discountType: "PERCENTAGE",
+      discountValue: 10,
+      orderValue: 1000,
+      discountAmount: 100,
+      status: "REDEEMED",
+    }));
+
+    await Redemption.create(redemptions);
+
+    const response = await request(app)
+      .get("/api/redemptions/history?page=2&limit=2")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.redemptions).toHaveLength(2);
+
+    expect(response.body.data.pagination).toMatchObject({
+      totalRecords: 5,
+      totalPages: 3,
+      currentPage: 2,
+      limit: 2,
+    });
+  });
+  it("should fetch only reverted redemptions for admin with pagination", async () => {
+    const adminId = new mongoose.Types.ObjectId();
+    const customerId = new mongoose.Types.ObjectId();
+
+    const coupon = await createActiveCoupon();
+    const adminToken = createAccessToken(adminId, "Admin");
+
+    await Redemption.create([
+      {
+        couponId: coupon._id,
+        customerId,
+        orderId: "REVERTED-001",
+        couponCode: coupon.code,
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        orderValue: 1000,
+        discountAmount: 100,
+        status: "REVERSED",
+        reversedAt: new Date(),
+      },
+      {
+        couponId: coupon._id,
+        customerId,
+        orderId: "REVERTED-002",
+        couponCode: coupon.code,
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        orderValue: 2000,
+        discountAmount: 200,
+        status: "REVERSED",
+        reversedAt: new Date(),
+      },
+      {
+        couponId: coupon._id,
+        customerId,
+        orderId: "ACTIVE-001",
+        couponCode: coupon.code,
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        orderValue: 3000,
+        discountAmount: 300,
+        status: "REDEEMED",
+      },
+    ]);
+
+    const response = await request(app)
+      .get("/api/admin/redemptions/reverted?page=1&limit=10")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.message).toBe(
+      "Reverted redemption history fetched successfully",
+    );
+
+    expect(response.body.data.redemptions).toHaveLength(2);
+
+    expect(
+      response.body.data.redemptions.every(
+        (redemption) => redemption.status === "REVERSED",
+      ),
+    ).toBe(true);
+
+    expect(
+      response.body.data.redemptions.every(
+        (redemption) => redemption.reversedAt !== null,
+      ),
+    ).toBe(true);
+
+    expect(response.body.data.pagination).toMatchObject({
+      totalRecords: 2,
+      totalPages: 1,
+      currentPage: 1,
+      limit: 10,
+    });
+  });
+  it("should reject customer access to admin reverted redemption history", async () => {
+    const customerId = new mongoose.Types.ObjectId();
+    const customerToken = createAccessToken(customerId, "Customer");
+
+    const response = await request(app)
+      .get("/api/admin/redemptions/reverted")
+      .set("Authorization", `Bearer ${customerToken}`);
+
+    expect(response.status).toBe(403);
+  });
 });
 
 beforeAll(async () => {

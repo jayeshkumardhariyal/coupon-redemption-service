@@ -36,12 +36,17 @@ export class APIFeatures {
   }
 
   paginate() {
-    const page = this.queryString.page * 1 || 1;
-    const limit = this.queryString.limit * 1 || 50;
+    const page = Math.max(1, Number.parseInt(this.queryString.page, 10) || 1);
+
+    const requestedLimit = Number.parseInt(this.queryString.limit, 10) || 50;
+    const limit = Math.min(100, Math.max(1, requestedLimit));
+
     const skip = (page - 1) * limit;
+
     this.query = this.query.skip(skip).limit(limit);
     this.page = page;
     this.limit = limit;
+
     return this;
   }
 
@@ -59,4 +64,4 @@ export class APIFeatures {
     this.paginate();
     return this;
   }
-};
+}
