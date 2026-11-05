@@ -174,7 +174,9 @@ export const redeemCouponService = async ({
         const redemptionHistory = await Redemption.find({
           couponId: coupon._id,
           customerId,
-        }).sort({ redeemedAt: -1 });
+        })
+          .session(session)
+          .sort({ redeemedAt: -1 });
 
         throw new AppError("Customer redemption limit reached", 400, {
           errors: [
