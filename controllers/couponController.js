@@ -9,13 +9,24 @@ import {
 } from "../services/couponService.js";
 
 export const createCoupon = catchAsync(async (req, res) => {
-  const { code, discountType, discountValue, expiresAt } = req.body;
+  const {
+    code,
+    discountType,
+    discountValue,
+    minOrderValue,
+    expiresAt,
+    maxRedemptions,
+    maxRedemptionsPerUser,
+  } = req.body;
 
   const coupon = await createCouponService({
     code,
     discountType,
     discountValue,
     expiresAt,
+    maxRedemptions,
+    minOrderValue,
+    maxRedemptionsPerUser,
   });
 
   return new AppSuccess(res, {

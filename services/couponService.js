@@ -5,48 +5,49 @@ export const createCouponService = async ({
   code,
   discountType,
   discountValue,
+  minOrderValue,
   expiresAt,
+  maxRedemptions,
+  maxRedemptionsPerUser,
 }) => {
-  // Normalize coupon code
   const normalizedCode = code.trim().toUpperCase();
 
-  // Check for an existing coupon
-  const existingCoupon = await Coupon.findOne({
-    code: normalizedCode,
-  });
-
-  if (existingCoupon) {
-    throw new AppError("Coupon code already exists", 409, {
+  if (maxRedemptionsPerUser > maxRedemptions) {
+    throw new AppError("Invalid redemption limit", 400, {
       errors: [
         {
-          field: "code",
-          message: "Coupon code already exists",
+          field: "maxRedemptionsPerUser",
+          message: "Per-user limit cannot exceed the global redemption limit",
         },
       ],
     });
   }
 
-  // Create coupon as DRAFT
+  const existingCoupon = await Coupon.findOne({ code: normalizedCode });
+
+  if (existingCoupon) {
+    throw new AppError("Coupon code already exists", 409, {
+      errors: [{ field: "code", message: "Coupon code already exists" }],
+    });
+  }
+
   try {
     const coupon = await Coupon.create({
       code: normalizedCode,
       discountType,
       discountValue,
+      minOrderValue,
       expiresAt: new Date(expiresAt),
+      maxRedemptions,
+      maxRedemptionsPerUser,
       status: "DRAFT",
     });
 
     return coupon;
   } catch (error) {
-    // Handle duplicate codes created by concurrent requests
     if (error.code === 11000) {
       throw new AppError("Coupon code already exists", 409, {
-        errors: [
-          {
-            field: "code",
-            message: "Coupon code already exists",
-          },
-        ],
+        errors: [{ field: "code", message: "Coupon code already exists" }],
       });
     }
 
@@ -64,6 +65,34 @@ export const updateCouponService = async (id, updateData) => {
         {
           field: "id",
           message: "Coupon not found with this id",
+        },
+      ],
+    });
+  }
+  const finalMaxRedemptions =
+    updateData.maxRedemptions ?? coupon.maxRedemptions;
+
+  const finalMaxRedemptionsPerUser =
+    updateData.maxRedemptionsPerUser ?? coupon.maxRedemptionsPerUser;
+
+  if (finalMaxRedemptionsPerUser > finalMaxRedemptions) {
+    throw new AppError("Invalid redemption limit", 400, {
+      errors: [
+        {
+          field: "maxRedemptionsPerUser",
+          message: "Per-user limit cannot exceed the global redemption limit",
+        },
+      ],
+    });
+  }
+
+  if (finalMaxRedemptions < coupon.redeemedCount) {
+    throw new AppError("Invalid redemption limit", 400, {
+      errors: [
+        {
+          field: "maxRedemptions",
+          message:
+            "Global redemption limit cannot be less than current active redemptions",
         },
       ],
     });
@@ -96,12 +125,12 @@ export const updateCouponService = async (id, updateData) => {
 
   const finalDiscountValue = updateData.discountValue ?? coupon.discountValue;
 
-  if (finalDiscountType === "PERCENTAGE" && finalDiscountValue > 100) {
+  if (finalDiscountType === "PERCENTAGE" && finalDiscountValue > 99) {
     throw new AppError("Invalid discount value", 400, {
       errors: [
         {
           field: "discountValue",
-          message: "Percentage discount cannot exceed 100",
+          message: "Percentage discount cannot exceed 99",
         },
       ],
     });

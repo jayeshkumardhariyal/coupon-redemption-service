@@ -32,7 +32,28 @@ const couponSchema = new mongoose.Schema(
       enum: ["DRAFT", "ACTIVE", "INACTIVE"],
       default: "DRAFT",
     },
-    
+    maxRedemptions: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    maxRedemptionsPerUser: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    redeemedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    minOrderValue: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
   },
   { timestamps: true },
 );

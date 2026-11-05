@@ -1,6 +1,7 @@
 import express from "express";
 import productRouter from "./productRouter.js";
 import couponRouter from "./couponRouter.js";
+import { revertRedemption } from "../controllers/redemptionController.js";
 
 // Admin routes are gated by verifyToken("access") where this router is mounted
 // (see indexRouter.js). That gate only checks authentication, not an admin role
@@ -10,5 +11,7 @@ const router = express.Router({ mergeParams: true });
 
 router.use("/products", productRouter);
 router.use("/coupon", couponRouter);
+
+router.patch("/redemptions/:redemptionId/revert", revertRedemption);
 
 export default router;

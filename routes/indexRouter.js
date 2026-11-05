@@ -4,6 +4,7 @@ import adminRouter from "./adminRouter.js";
 import publicRouter from "./publicRouter.js";
 import { verifyToken } from "../middlewares/auth.js";
 import { requireRole } from "../middlewares/RoleValidator.js";
+import redemptionRouter from "../routes/redemptionRoute.js";
 
 const router = express.Router();
 
@@ -16,5 +17,12 @@ router.use("/admin", verifyToken("access"), requireRole("Admin"), adminRouter);
 
 // Public, unauthenticated resources (storefront-style reads + purchase).
 router.use("/public", publicRouter);
+
+router.use(
+  "/redemptions",
+  verifyToken("access"),
+  requireRole("Customer"),
+  redemptionRouter,
+);
 
 export default router;

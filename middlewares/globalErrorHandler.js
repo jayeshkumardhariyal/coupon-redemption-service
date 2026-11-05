@@ -9,11 +9,12 @@ const sendError = (error, res) => {
   let statusCode = error.statusCode || 500;
   let status = error.status || "error";
   let responseCode = error.responseCode !== undefined ? error.responseCode : 1;
+  let data = error.data || {};
 
   if (error.name === "ValidationError" && error.details) {
     errors = error.details.map((err) => ({
       field: err.path.join("."),
-      message: err.message.replace(/"([^"]+)"/g, '$1'),
+      message: err.message.replace(/"([^"]+)"/g, "$1"),
     }));
     statusCode = 400;
     status = "fail";
@@ -58,6 +59,7 @@ const sendError = (error, res) => {
     status,
     statusCode,
     errors,
+    data,
     stack: process.env.NODE_ENV !== "production" ? error.stack : undefined,
   });
 };
